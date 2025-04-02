@@ -1,0 +1,109 @@
+// schema.prisma
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Enum definitions for clarity and data consistency
+enum AccountType {
+  EXCHANGE
+  WALLET
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  SHIPPED
+  CANCELLED
+}
+
+// User accounts table
+model User {
+  id           String       @id @default(uuid()) // Using UUID for Supabase
+  email        String       @unique
+  passwordHash String
+  createdAt    DateTime     @default(now())
+  // Relationships
+  orders       Order[]
+  accounts     CryptoAccount[]
+  consentLogs  ConsentLog[]
+}
+
+// Linked crypto accounts (via Mesh Connect)
+model CryptoAccount {
+  id             String        @id @default(uuid())
+  user           User          @relation(fields: [userId], references: [id])
+  userId         String
+  type           AccountType
+  integration    String
+  address        String?
+  accessToken    String
+  refreshToken   String?
+  createdAt      DateTime      @default(now())
+  // Relationship
+  transactions   Transaction[]
+}
+
+// Shop products
+model Product {
+  id          String       @id @default(uuid())
+  name        String
+  description String?
+  price       Decimal      @db.Decimal(10, 2)
+  stock       Int
+  // Relationship
+  orderItems  OrderItem[]
+}
+
+// Customer orders (one per checkout)
+model Order {
+  id          String        @id @default(uuid())
+  user        User          @relation(fields: [userId], references: [id])
+  userId      String
+  status      OrderStatus   @default(PENDING_PAYMENT)
+  total       Decimal       @db.Decimal(10, 2)
+  createdAt   DateTime      @default(now())
+  // Relationships
+  items       OrderItem[]
+  transaction Transaction?
+}
+
+// Line items for each product in an order
+model OrderItem {
+  id         String      @id @default(uuid())
+  order      Order       @relation(fields: [orderId], references: [id])
+  orderId    String
+  product    Product     @relation(fields: [productId], references: [id])
+  productId  String
+  quantity   Int
+  price      Decimal     @db.Decimal(10, 2)
+  
+  // Composite key to prevent duplicate product entries per order
+  @@unique([orderId, productId])
+}
+
+// Blockchain transaction details for an order payment
+model Transaction {
+  id              String        @id @default(uuid())
+  order           Order         @relation(fields: [orderId], references: [id])
+  orderId         String        @unique
+  account         CryptoAccount @relation(fields: [cryptoAccountId], references: [id])
+  cryptoAccountId String
+  txHash          String        @unique
+  amount          Decimal       @db.Decimal(10, 2)
+  status          String
+  timestamp       DateTime      @default(now())
+}
+
+// Log of user consent for GDPR compliance
+model ConsentLog {
+  id         String    @id @default(uuid())
+  user       User      @relation(fields: [userId], references: [id])
+  userId     String
+  consentType String
+  givenAt    DateTime  @default(now())
+}
