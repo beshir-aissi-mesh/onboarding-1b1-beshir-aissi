@@ -8,7 +8,7 @@ import { Decimal } from '@prisma/client/runtime/library';
 
 const prisma = new PrismaClient();
 
-// This function formats Decimal from Prisma to a standard number
+// Formats Decimal from Prisma to a standard number
 function formatDecimal(decimal: Decimal): number {
   return parseFloat(decimal.toString());
 }

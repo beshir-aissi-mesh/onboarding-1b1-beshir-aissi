@@ -4,15 +4,12 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 
-// Updated schema to accept an ID from Supabase - this should be required
-// for Supabase synchronization cases
 const SignupSchema = z.object({
-  id: z.string().optional(), // Supabase user ID
+  id: z.string(), // Supabase user ID is required
   email: z.string().email({ message: "Invalid email address" }),
   password: z
     .string()
     .min(8, { message: "Password must be at least 8 characters long" }),
-  fromSupabase: z.boolean().optional().default(false), // Flag to indicate if this signup is syncing from Supabase
 });
 
 const LATEST_CONSENT_TYPE = "TermsOfServiceAndPrivacyPolicy_v1.0";
@@ -21,7 +18,6 @@ const SALT_ROUNDS = 10;
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-
     const validationResult = SignupSchema.safeParse(body);
 
     if (!validationResult.success) {
@@ -34,69 +30,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { id, email, password, fromSupabase } = validationResult.data;
+    const { id, email, password } = validationResult.data;
 
-    // If this request is syncing a Supabase user, we should make sure
-    // the ID is provided
-    if (fromSupabase && !id) {
+    // Check if user already exists by Supabase ID
+    const existingUser = await prisma.user.findUnique({ where: { id } });
+
+    if (existingUser) {
       return NextResponse.json(
-        { message: "Supabase user ID is required for synchronization" },
-        { status: 400 }
-      );
-    }
-
-    // Special handling for Supabase user syncing
-    if (fromSupabase) {
-      // Check if user already exists by ID
-      const existingUserById = await prisma.user.findUnique({
-        where: { id },
-      });
-
-      // If user already exists by this ID, return success
-      if (existingUserById) {
-        return NextResponse.json(
-          {
-            message: "User already synchronized",
-            user: {
-              id: existingUserById.id,
-              email: existingUserById.email,
-              createdAt: existingUserById.createdAt,
-            },
+        {
+          message: "User already synchronized",
+          user: {
+            id: existingUser.id,
+            email: existingUser.email,
+            createdAt: existingUser.createdAt,
           },
-          { status: 200 }
-        );
-      }
-    } else {
-      // For regular signups, check by email
-      const existingUser = await prisma.user.findUnique({
-        where: { email },
-      });
-
-      if (existingUser) {
-        return NextResponse.json(
-          { message: "Email address is already registered" },
-          { status: 409 }
-        );
-      }
+        },
+        { status: 200 }
+      );
     }
 
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
-    // Create User with the provided ID or generate a new one
     const newUser = await prisma.$transaction(async (tx) => {
-      // When syncing from Supabase, make sure to use the provided ID
-      const userData: any = {
-        email: email,
-        passwordHash: passwordHash,
-      };
-
-      // Add ID to the data object if it was provided
-      if (id) {
-        userData.id = id;
-      }
-
       const createdUser = await tx.user.create({
-        data: userData,
+        data: {
+          id,
+          email,
+          passwordHash,
+        },
       });
 
       await tx.consentLog.create({
@@ -107,7 +68,6 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Create an empty cart for the user
       await tx.cart.create({
         data: {
           userId: createdUser.id,
@@ -129,7 +89,7 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error: unknown) {
-    console.error("Signup API Error:", error);
+    console.error("Supabase Sync Error:", error);
 
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === "P2002") {

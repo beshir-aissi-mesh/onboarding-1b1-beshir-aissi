@@ -9,7 +9,6 @@ const prisma = new PrismaClient();
 // GET method to fetch cart items
 export async function GET(req: NextRequest) {
   try {
-    // Use Next.js cookies API to get a cookie store - with await
     const cookieStore = await cookies();
 
     // Create a Supabase server client with the resolved cookie store
@@ -206,18 +205,8 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // Update product stock
-      for (const item of cart.items) {
-        await tx.product.update({
-          where: { id: item.productId },
-          data: { stock: item.product.stock - item.quantity },
-        });
-      }
-
       return newOrder;
     });
-
-    // Don't clear the cart yet - typically done after payment confirmation
 
     return NextResponse.json(
       {

@@ -10,7 +10,7 @@ import {
   CardActionArea,
   CardMedia,
   Chip,
-  Skeleton  // Import Skeleton component
+  Skeleton
 } from '@mui/material';
 import ProductNavbar from '@/components/ProductsNavbar';
 import Link from 'next/link';
@@ -23,7 +23,7 @@ function formatDecimal(decimal: Decimal): number {
 const ProductsPage = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(true); // Add loading state
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -56,7 +56,7 @@ const ProductsPage = () => {
     product.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Create skeleton product card component
+  // Skeleton product card component
   const SkeletonProductCard = () => (
     <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Skeleton variant="rectangular" height={200} animation="wave" />
@@ -115,6 +115,7 @@ const ProductsPage = () => {
                     <CardActionArea>
                       <CardMedia
                         component="div"
+                        image={product.imageURL}
                         sx={{
                           height: 200,
                           bgcolor: 'sand.light',
@@ -123,9 +124,6 @@ const ProductsPage = () => {
                           justifyContent: 'center'
                         }}
                       >
-                        <Typography color="text.secondary">
-                          Product Image
-                        </Typography>
                       </CardMedia>
                       <CardContent>
                         <Typography gutterBottom variant="h6" component="h2" color="charcoal.main">

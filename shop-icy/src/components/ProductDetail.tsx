@@ -26,6 +26,7 @@ type ProductProps = {
     description: string | null;
     price: number;
     stock: number;
+    imageURL: string | undefined;
   } | null;
   isLoading: boolean;
 };
@@ -135,28 +136,19 @@ const ProductDetail: React.FC<ProductProps> = ({ product, isLoading }) => {
             }}
           >
             <Box
+              component={"img"}
+              alt="Product Image"
+              src={product.imageURL}
               sx={{
                 width: "100%",
                 height: "100%",
+                objectFit: "contain",
                 position: "relative",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
               }}
-            >
-              <Typography
-                variant="body1"
-                color="text.secondary"
-                sx={{
-                  position: "absolute",
-                  p: 2,
-                  bgcolor: "rgba(255,255,255,0.7)",
-                  borderRadius: 1,
-                }}
-              >
-                Product Image Placeholder
-              </Typography>
-            </Box>
+            />
           </Paper>
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
@@ -233,9 +225,9 @@ const ProductDetail: React.FC<ProductProps> = ({ product, isLoading }) => {
               disabled={product.stock <= 0 || isAddingToCart}
               sx={{ flexGrow: 1, py: 1.5 }}
             >
-                <Typography variant="button" fontWeight="bold">
-                    {isAddingToCart ? "Adding..." : "Add to Cart"}
-                </Typography>
+              <Typography variant="button" fontWeight="bold">
+                {isAddingToCart ? "Adding..." : "Add to Cart"}
+              </Typography>
               {/* {isAddingToCart ? "Adding..." : "Add to Cart"} */}
             </Button>
           </Box>

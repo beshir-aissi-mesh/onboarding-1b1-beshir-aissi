@@ -18,7 +18,6 @@ import {
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import CheckoutPopup from './CheckoutPopup';
@@ -96,7 +95,7 @@ const CartPopup: React.FC<CartPopupProps> = ({ open, onClose }) => {
     }
   };
 
-  // Now we send the new absolute quantity instead of a delta.
+  // Send the new absolute quantity
   const handleUpdateQuantity = async (itemId: string, productId: string, newQuantity: number) => {
     const item = cartItems.find(item => item.id === itemId);
     if (!item) return;
@@ -172,8 +171,7 @@ const CartPopup: React.FC<CartPopupProps> = ({ open, onClose }) => {
           color: 'white'
         }}>
           <Typography variant="h6" component="div" sx={{ display: 'flex', alignItems: 'center' }}>
-            <ShoppingCartIcon sx={{ mr: 1 }} />
-            Your Shopping Cart
+            Cart
           </Typography>
           <IconButton 
             aria-label="close" 

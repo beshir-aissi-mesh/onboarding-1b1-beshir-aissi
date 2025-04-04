@@ -3,14 +3,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import prisma from "@/lib/prisma"; // Use your singleton Prisma instance
+import prisma from "@/lib/prisma";
 
-// Ensure these are set in your .env.local
-const MESH_API_SECRET = process.env.MESH_API_SECRET; // Your Mesh Secret Key (e.g., sk_sand_...)
-const MESH_CLIENT_ID = process.env.MESH_CLIENT_ID; // Your Mesh Client ID (e.g., e464...)
-const YOUR_RECEIVING_WALLET_ADDRESS = process.env.RECEIVING_WALLET_ADDRESS; // e.g., 0x...
-const PAYMENT_NETWORK_ID = process.env.PAYMENT_NETWORK_ID; // e.g., "bad16371-c22a-4bf4-a311-274d046cd760" for USDC on Polygon Mumbai (Sandbox)
-const PAYMENT_SYMBOL = process.env.PAYMENT_SYMBOL || "USDC"; // e.g., USDC
+const MESH_API_SECRET = process.env.MESH_API_SECRET;
+const MESH_CLIENT_ID = process.env.MESH_CLIENT_ID;
+const YOUR_RECEIVING_WALLET_ADDRESS = process.env.RECEIVING_WALLET_ADDRESS;
+const PAYMENT_NETWORK_ID = process.env.PAYMENT_NETWORK_ID;
+const PAYMENT_SYMBOL = process.env.PAYMENT_SYMBOL || "USDC";
 
 export async function POST(
   req: NextRequest,
@@ -65,8 +64,7 @@ export async function POST(
     const meshPayload = {
       brokerType: "coinbase", // Or make this dynamic if needed
       // Use the Supabase user ID or another stable identifier you manage
-      // IMPORTANT: Use a consistent ID for the same end-user across sessions.
-      userId: `app_user_${userId}`, // Example: prefixing Supabase ID
+      userId: `app_user_${userId}`,
       transferOptions: {
         toAddresses: [
           {
@@ -79,11 +77,10 @@ export async function POST(
         ],
         // Use the database order ID as the transactionId for easier reconciliation
         transactionId: order.id,
-        clientFee: 0, // Optional fee you might charge
+        clientFee: 0, // Fee
         transferType: "payment",
       },
       restrictMultipleAccounts: true, // Recommended for payments
-      // integrationId: "47624467-e52e-4938-a41a-7926b6c27acf" // Usually not needed when brokerType is set
     };
 
     // Call Mesh API to get the link token
