@@ -54,7 +54,7 @@ const HeroSection = () => {
           <HeroSubtitle variant="h6">
             Purchase shoes, boards, bikes, and more with Crypto, no strings attached.
           </HeroSubtitle>
-          <ShopButton variant="contained" size="large">
+          <ShopButton variant="contained" size="large" href="/products">
             Shop Now
           </ShopButton>
         </Grid>

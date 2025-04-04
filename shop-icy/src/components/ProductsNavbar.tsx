@@ -12,13 +12,16 @@ import {
   Divider,
   TextField,
   InputAdornment,
+  Skeleton,
 } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import Image from "next/image";
 import MenuIcon from "@mui/icons-material/Menu";
 import SearchIcon from "@mui/icons-material/Search";
+import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import SignInPopup from "./SignInPopup";
 import SignUpPopup from "./SignUpPopup";
+import CartPopup from "./CartPopup";
 // Import Supabase client
 import { createClient } from "@/utils/supabase/client";
 import { User } from "@supabase/supabase-js";
@@ -60,10 +63,12 @@ const ProductNavbar: React.FC<ProductNavbarProps> = ({
   // Initialize Supabase client
   const supabase = createClient();
 
-  // --- State for Popups and User ---
+  // --- State for Popups, User, Cart, and Loading Indicator ---
   const [isSignInOpen, setIsSignInOpen] = useState(false);
   const [isSignUpOpen, setIsSignUpOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isCartOpen, setIsCartOpen] = useState(false);
 
   // --- State for Profile Menu ---
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -76,6 +81,7 @@ const ProductNavbar: React.FC<ProductNavbarProps> = ({
         data: { user },
       } = await supabase.auth.getUser();
       setCurrentUser(user);
+      setIsLoading(false);
     };
 
     checkSession();
@@ -219,7 +225,7 @@ const ProductNavbar: React.FC<ProductNavbarProps> = ({
             </Box>
           </Box>
 
-          {/* Right: Auth Buttons / Profile Icon */}
+          {/* Right: Cart Icon & Auth Buttons / Profile Icon */}
           <Box
             sx={{
               flex: 1,
@@ -228,7 +234,24 @@ const ProductNavbar: React.FC<ProductNavbarProps> = ({
               alignItems: "center",
             }}
           >
-            {currentUser ? (
+            {/* Wait to render the cart icon until validation is complete */}
+            {isLoading ? (
+              <Box sx={{ width: 48, mr: 2 }} />
+            ) : (
+              <IconButton
+                size="large"
+                aria-label="shopping cart"
+                color="inherit"
+                onClick={() => setIsCartOpen(true)}
+                sx={{ mr: 2 }}
+              >
+                <ShoppingCartIcon />
+              </IconButton>
+            )}
+            {isLoading ? (
+              // Loading placeholder for the auth area
+              <Skeleton variant="rectangular" width={120} height={40} sx={{ ml: 2 }} />
+            ) : currentUser ? (
               <>
                 <IconButton
                   size="large"
@@ -289,7 +312,7 @@ const ProductNavbar: React.FC<ProductNavbarProps> = ({
         </Toolbar>
       </StyledAppBar>
 
-      {/* Popups */}
+      {/* Existing SignInPopup and SignUpPopup components */}
       <SignInPopup
         open={isSignInOpen}
         onClose={handleCloseSignIn}
@@ -300,6 +323,8 @@ const ProductNavbar: React.FC<ProductNavbarProps> = ({
         onClose={handleCloseSignUp}
         onSuccess={handleSignUpSuccess}
       />
+      {/* Cart Popup */}
+      <CartPopup open={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </>
   );
 };

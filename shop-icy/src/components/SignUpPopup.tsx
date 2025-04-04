@@ -10,6 +10,9 @@ import {
     Button,
     CircularProgress,
     Typography,
+    Checkbox,
+    FormControlLabel,
+    Link,
 } from '@mui/material';
 import { createClient } from '@/utils/supabase/client';
 import { User } from '@supabase/supabase-js';
@@ -25,9 +28,14 @@ const SignUpPopup: React.FC<SignUpPopupProps> = ({ open, onClose, onSuccess }) =
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [consentGiven, setConsentGiven] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
+    
+    const validatePassword = (password: string): boolean => {
+        return password.length >= 8; // Matches your schema validation
+    };
     
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -35,30 +43,105 @@ const SignUpPopup: React.FC<SignUpPopupProps> = ({ open, onClose, onSuccess }) =
         setError(null);
         setSuccessMessage(null);
         
-        // Validate passwords match
+        // Validate inputs
         if (password !== confirmPassword) {
             setError('Passwords do not match');
             setLoading(false);
             return;
         }
         
-        const { data, error } = await supabase.auth.signUp({
-            email,
-            password,
-        });
+        if (!validatePassword(password)) {
+            setError('Password must be at least 8 characters long');
+            setLoading(false);
+            return;
+        }
         
-        setLoading(false);
+        if (!consentGiven) {
+            setError('You must agree to the terms and privacy policy');
+            setLoading(false);
+            return;
+        }
         
-        if (error) {
-            setError(error.message);
-        } else if (data.user) {
-            if (data.session) {
+        try {
+            // Step 1: Sign up with Supabase
+            const { data: authData, error: authError } = await supabase.auth.signUp({
+                email,
+                password,
+                options: {
+                    emailRedirectTo: `${window.location.origin}/auth/callback`,
+                    data: {
+                        email: email,
+                    }
+                }
+            });
+            
+            if (authError) {
+                console.error('Supabase auth error:', authError);
+                setError(authError.message);
+                setLoading(false);
+                return;
+            }
+            
+            if (!authData.user) {
+                setError('Failed to create account');
+                setLoading(false);
+                return;
+            }
+            
+            console.log('Supabase signup successful, user ID:', authData.user.id);
+            
+            // Step 2: Create user in Prisma database with fromSupabase flag
+            const response = await fetch('/api/auth/signup', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email: email,
+                    password: password,
+                    id: authData.user.id, // Pass the Supabase user ID
+                    fromSupabase: true, // Indicate this is a Supabase sync
+                }),
+            });
+            
+            const responseData = await response.json();
+            
+            if (!response.ok) {
+                console.error('Database signup error:', responseData);
+                
+                // If database signup fails, we should delete the Supabase user
+                // to maintain consistency
+                try {
+                    // Note: Typically only admins can delete users, so this might fail
+                    // unless you're using a specific admin client
+                    await supabase.auth.admin.deleteUser(authData.user.id);
+                } catch (deleteErr) {
+                    console.error('Failed to clean up Supabase user after DB error:', deleteErr);
+                }
+                
+                setError(responseData.message || 'Failed to create user record');
+                setLoading(false);
+                return;
+            }
+            
+            console.log('Prisma signup successful:', responseData);
+            
+            // Step 3: Handle successful signup
+            if (authData.session) {
                 // User is immediately signed in (if email confirmation is disabled)
-                onSuccess(data.user);
+                onSuccess(authData.user);
             } else {
                 // Email confirmation is required
-                setSuccessMessage('Please check your email for a confirmation link.');
+                setSuccessMessage(
+                    'Your account has been created! Please check your email (including spam folder) ' +
+                    'and click the confirmation link to complete registration.'
+                );
             }
+        } catch (error) {
+            console.error('Signup process error:', error);
+            setError('An unexpected error occurred. Please try again.');
+        } finally {
+            setLoading(false);
         }
     };
     
@@ -66,14 +149,15 @@ const SignUpPopup: React.FC<SignUpPopupProps> = ({ open, onClose, onSuccess }) =
         setEmail('');
         setPassword('');
         setConfirmPassword('');
+        setConsentGiven(false);
         setError(null);
         setSuccessMessage(null);
         onClose();
     };
     
     return (
-        <Dialog open={open} onClose={handleClose}>
-            <DialogTitle>Sign Up</DialogTitle>
+        <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+            <DialogTitle>Create an Account</DialogTitle>
             <form onSubmit={handleSubmit}>
                 <DialogContent>
                     {error && (
@@ -106,6 +190,7 @@ const SignUpPopup: React.FC<SignUpPopupProps> = ({ open, onClose, onSuccess }) =
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         required
+                        helperText="Password must be at least 8 characters long"
                     />
                     <TextField
                         label="Confirm Password"
@@ -116,6 +201,22 @@ const SignUpPopup: React.FC<SignUpPopupProps> = ({ open, onClose, onSuccess }) =
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         required
+                    />
+                    <FormControlLabel
+                        control={
+                            <Checkbox
+                                checked={consentGiven}
+                                onChange={(e) => setConsentGiven(e.target.checked)}
+                                color="primary"
+                                required
+                            />
+                        }
+                        label={
+                            <Typography variant="body2">
+                                I agree to the <Link href="/terms" target="_blank">Terms of Service</Link> and <Link href="/privacy" target="_blank">Privacy Policy</Link>
+                            </Typography>
+                        }
+                        sx={{ mt: 2 }}
                     />
                 </DialogContent>
                 <DialogActions sx={{ px: 3, pb: 2 }}>

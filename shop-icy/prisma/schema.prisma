@@ -23,7 +23,7 @@ enum OrderStatus {
 
 // User accounts table
 model User {
-  id           String       @id @default(uuid()) // Using UUID for Supabase
+  id           String       @id @default(uuid())
   email        String       @unique
   passwordHash String
   createdAt    DateTime     @default(now())
@@ -31,6 +31,7 @@ model User {
   orders       Order[]
   accounts     CryptoAccount[]
   consentLogs  ConsentLog[]
+  cart         Cart?
 }
 
 // Linked crypto accounts (via Mesh Connect)
@@ -55,8 +56,9 @@ model Product {
   description String?
   price       Decimal      @db.Decimal(10, 2)
   stock       Int
-  // Relationship
+  // Relationships
   orderItems  OrderItem[]
+  cartItems   CartItem[]
 }
 
 // Customer orders (one per checkout)
@@ -106,4 +108,27 @@ model ConsentLog {
   userId     String
   consentType String
   givenAt    DateTime  @default(now())
+}
+
+// Shopping cart (one per user)
+model Cart {
+  id        String     @id @default(uuid())
+  user      User       @relation(fields: [userId], references: [id])
+  userId    String     @unique // One cart per user
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+// Items in the shopping cart
+model CartItem {
+  id        String   @id @default(uuid())
+  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  cartId    String
+  product   Product  @relation(fields: [productId], references: [id])
+  productId String
+  quantity  Int
+  
+  // Prevent duplicate products in the same cart
+  @@unique([cartId, productId])
 }
