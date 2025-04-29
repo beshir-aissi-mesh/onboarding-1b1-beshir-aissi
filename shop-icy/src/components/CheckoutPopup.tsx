@@ -81,7 +81,7 @@ const CheckoutPopup: React.FC<CheckoutPopupProps> = ({
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ total }), // Send total amount here
+            body: JSON.stringify({ total }), // total amount here
           });
           const data = await res.json();
           setLinkToken(data.content.linkToken);
@@ -107,7 +107,9 @@ const CheckoutPopup: React.FC<CheckoutPopupProps> = ({
 
       if (!payResponse.ok) {
         const payError = await payResponse.json();
-        throw new Error(payError.message || "Failed to update order status to PAID");
+        throw new Error(
+          payError.message || "Failed to update order status to PAID"
+        );
       }
       console.log(`Order ${orderId} marked as PAID.`);
 
@@ -121,7 +123,10 @@ const CheckoutPopup: React.FC<CheckoutPopupProps> = ({
 
       if (!clearResponse.ok) {
         const clearError = await clearResponse.json();
-        console.error("Failed to clear cart:", clearError.message || "Unknown error");
+        console.error(
+          "Failed to clear cart:",
+          clearError.message || "Unknown error"
+        );
       } else {
         console.log(`Cart cleared for order ${orderId}.`);
       }
@@ -170,8 +175,13 @@ const CheckoutPopup: React.FC<CheckoutPopupProps> = ({
         onEvent: (event) => {
           console.log("Mesh Link event:", event);
           // If Mesh returns a transferExecuted event, automatically proceed to confirmation.
-          if (event.type === "transferExecuted" && event.payload?.status === "pending") {
-            console.log("Transfer executed event received. Completing payment...");
+          if (
+            event.type === "transferExecuted" &&
+            event.payload?.status === "pending"
+          ) {
+            console.log(
+              "Transfer executed event received. Completing payment..."
+            );
             completePayment();
           }
         },
@@ -264,7 +274,9 @@ const CheckoutPopup: React.FC<CheckoutPopupProps> = ({
                   />
                   <Typography>
                     $
-                    {(parseFloat(item.product.price) * item.quantity).toFixed(2)}
+                    {(parseFloat(item.product.price) * item.quantity).toFixed(
+                      2
+                    )}
                   </Typography>
                 </ListItem>
               ))}
@@ -336,7 +348,8 @@ const CheckoutPopup: React.FC<CheckoutPopupProps> = ({
               Order Completed Successfully!
             </Typography>
             <Typography paragraph>
-              Thank you for your purchase. Your order #{orderId} has been confirmed.
+              Thank you for your purchase. Your order #{orderId} has been
+              confirmed.
             </Typography>
             <Button
               variant="contained"

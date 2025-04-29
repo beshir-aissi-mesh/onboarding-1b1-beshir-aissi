@@ -231,13 +231,13 @@ const ProductNavbar: React.FC<ProductNavbarProps> = ({
                         borderColor: theme.palette.teal.main,
                       },
                     },
-                    "& .MuiInputBase-input": {
-                      color: theme.palette.charcoal.main,
-                      "&::placeholder": {
-                        color: theme.palette.offWhite.main,
-                        opacity: 1,
+                      "& .MuiInputBase-input": {
+                        color: "white",
+                        "&::placeholder": {
+                          color: theme.palette.offWhite.main,
+                          opacity: 1,
+                        },
                       },
-                    },
                   }}
                   InputProps={{
                     startAdornment: (
@@ -369,7 +369,7 @@ const ProductNavbar: React.FC<ProductNavbarProps> = ({
                         },
                       },
                       "& .MuiInputBase-input": {
-                        color: theme.palette.charcoal.main,
+                        color: "white",
                         "&::placeholder": {
                           color: theme.palette.offWhite.main,
                           opacity: 1,

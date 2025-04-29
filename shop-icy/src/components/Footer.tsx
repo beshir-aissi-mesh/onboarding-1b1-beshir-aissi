@@ -79,9 +79,8 @@ const Footer = () => {
             </Typography>
 
             <Stack direction="row" spacing={{ xs: 1.5, sm: 2 }} justifyContent="center">
-              <FooterLink href="#" variant="body2">Privacy</FooterLink>
-              <FooterLink href="#" variant="body2">Terms</FooterLink>
-              <FooterLink href="#" variant="body2">Cookies</FooterLink>
+              <FooterLink href="/privacy" variant="body2">Privacy</FooterLink>
+              <FooterLink href="/terms" variant="body2">Terms</FooterLink>
             </Stack>
           </Box>
         </Box>

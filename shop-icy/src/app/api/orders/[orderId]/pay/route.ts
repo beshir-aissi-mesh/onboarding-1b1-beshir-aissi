@@ -76,21 +76,21 @@ export async function PATCH(
       );
     }
 
+    // Update order status to PAID
+    // console.log(`Updating order ${context.params.orderId} to PAID.`);
+    const updatedOrder = await prisma.order.update({
+      where: { id: context.params.orderId },
+      data: { status: "PAID" },
+    });
+
+    // Return a successful JSON response with the updated order details
+    return NextResponse.json({ order: updatedOrder });
+
   } catch (error) {
-    console.error("Error fetching order:", error);
+    console.error("Error processing payment:", error);
     return NextResponse.json(
       { error: "An unexpected error occurred" },
       { status: 500 }
     );
   }
-
-  // Await the params to satisfy Next.js requirements.
-  const { orderId } = await Promise.resolve(context.params);
-  console.log(`Updating order ${orderId} to PAID.`);
-
-  // Simulate a database update (replace with your actual update logic)
-  await new Promise((resolve) => setTimeout(resolve, 500));
-
-  // Return a successful JSON response with the updated order details
-  return NextResponse.json({ order: { id: orderId, status: "PAID" } });
 }

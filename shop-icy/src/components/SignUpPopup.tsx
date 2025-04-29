@@ -13,6 +13,7 @@ import {
     Checkbox,
     FormControlLabel,
     Link,
+    Box,
 } from '@mui/material';
 import { createClient } from '@/utils/supabase/client';
 import { User } from '@supabase/supabase-js';
@@ -202,22 +203,54 @@ const SignUpPopup: React.FC<SignUpPopupProps> = ({ open, onClose, onSuccess }) =
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         required
                     />
-                    <FormControlLabel
-                        control={
-                            <Checkbox
-                                checked={consentGiven}
-                                onChange={(e) => setConsentGiven(e.target.checked)}
-                                color="primary"
-                                required
-                            />
-                        }
-                        label={
-                            <Typography variant="body2">
-                                I agree to the <Link href="/terms" target="_blank">Terms of Service</Link> and <Link href="/privacy" target="_blank">Privacy Policy</Link>
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start', mt: 2 }}>
+                        <Checkbox
+                            checked={consentGiven}
+                            onChange={(e) => setConsentGiven(e.target.checked)}
+                            color="primary"
+                            required
+                            sx={{ pt: 0, mt: 0.25 }}
+                        />
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center' }}>
+                            <Typography variant="body2" component="span">
+                                I agree to the 
                             </Typography>
-                        }
-                        sx={{ mt: 2 }}
-                    />
+                            <Link 
+                                href="/terms"
+                                sx={{ 
+                                    textDecoration: 'none', 
+                                    color: 'primary.main',
+                                    ml: 0.5,
+                                    mr: 0.5,
+                                    '&:hover': { textDecoration: 'underline' } 
+                                }}
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    window.open('/terms', '_blank');
+                                }}
+                            >
+                                Terms of Service
+                            </Link>
+                            <Typography variant="body2" component="span">
+                                and
+                            </Typography>
+                            <Link 
+                                href="/privacy"
+                                sx={{ 
+                                    textDecoration: 'none', 
+                                    color: 'primary.main',
+                                    ml: 0.5,
+                                    '&:hover': { textDecoration: 'underline' } 
+                                }}
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    window.open('/privacy', '_blank');
+                                }}
+                            >
+                                Privacy Policy
+                            </Link>
+                        </Box>
+                    </Box>
                 </DialogContent>
                 <DialogActions sx={{ px: 3, pb: 2 }}>
                     <Button onClick={handleClose} color="inherit">

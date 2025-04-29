@@ -111,7 +111,7 @@ export default function Profile() {
   };
 
   // Handle the response from Mesh after a successful connection.
-  // Extract the auth token and account type, then call your API route to fetch holdings.
+  // Extract the auth token and account type, then call API route to fetch holdings.
   const handleConnected = async (payload: LinkPayload) => {
     setLoading(true);
 
@@ -122,7 +122,7 @@ export default function Profile() {
     }
 
     const authToken = payload.accessToken.accountTokens[0].accessToken;
-    const accountType = payload.accessToken.brokerType; // e.g., "cryptocurrencyWallet"
+    const accountType = payload.accessToken.brokerType; // ie "cryptocurrencyWallet"
 
     try {
       const res = await fetch("/api/mesh/holdings", {
