@@ -33,8 +33,11 @@
                 .then(response => response.json())
                 .then(data => {
                     console.log('Token stored successfully');
-                    document.body.innerHTML = '<h2>Authentication complete! You can close this window.</h2>';
-                    document.body.innerHTML += '<h3>Request ID: </h3> <span id="request_id">{{ request_id }}</span>';
+                    document.body.innerHTML = '<h2>Authentication complete!</h2>';
+                    // document.body.innerHTML += '<h3>Request ID: </h3> <span id="request_id">{{ request_id }}</span>';
+                    setTimeout(() => {
+                        window.close();
+                    }, 1500); // Give user a moment to see the message
                 })
                 .catch((error) => {
                     console.error('Error:', error);
