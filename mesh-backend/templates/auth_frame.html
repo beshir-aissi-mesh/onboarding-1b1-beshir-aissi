@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mesh Sandbox Integration</title>
+    <meta http-equiv="Content-Security-Policy" 
+          content="frame-src self *.meshconnect.com *.getfront.com;">
+</head>
+<body>
+    <iframe id="meshFrame"
+            sandbox="allow-forms allow-scripts allow-same-origin allow-popups"
+            src="{{ auth_url }}&client_id={{ client_id }}"
+            style="width: 100%; height: 80vh; border: 1px solid #ccc">
+    </iframe>
+    
+    <div id="balanceResult" style="padding: 20px;"></div>
+    <div id="accessTokenResult" style="padding: 20px;"></div>
+    <div id="accountInfoResult" style="padding: 20px;"></div>
+
+    <script>
+        window.addEventListener('message', (event) => {
+            console.log('Received message from iframe:', event);
+            console.log('Data type:', event.data.type);
+            
+            if (event?.data?.type === 'done' || event?.data?.type === 'close') {
+                const balanceResult = document.getElementById('balanceResult');
+                balanceResult.innerHTML = `<h3>Balance: ${5}</h3>`;
+                const iframe = document.getElementById('meshFrame');
+                iframe.parentNode.removeChild(iframe);
+            } else if (event?.data?.type === 'brokerageAccountAccessToken') {
+                const accessToken = event?.data?.payload?.accountTokens?.[0]?.accessToken;
+                const accessTokenResult = document.getElementById('accessTokenResult');
+                accessTokenResult.innerHTML = `<h3>Access Token: ${accessToken}</h3>`;
+                console.log('Access Token:', accessToken);
+
+                const account = event?.data?.payload?.accountTokens?.[0]?.account;
+                const accountInfoResult = document.getElementById('accountInfoResult');
+                accountInfoResult.innerHTML = `
+                    <h3>Account Information:</h3>
+                    <p>Account Name: ${account.accountName}</p>
+                    <p>Account ID: ${account.accountId}</p>
+                    <p>Cash (USD): ${account.cash}</p>
+                    <p>Fund: ${account.fund}</p>
+                `;
+
+                const balanceResult = document.getElementById('balanceResult');
+                balanceResult.innerHTML = `<h3>Balance: ${account.cash}</h3>`;
+
+                const iframe = document.getElementById('meshFrame');
+                iframe.parentNode.removeChild(iframe);
+            } else if (event?.data?.type === 'error') {
+                const errorMessage = event?.data?.payload?.message;
+                const balanceResult = document.getElementById('balanceResult');
+                balanceResult.innerHTML = `<h3>Error: ${errorMessage}</h3>`;
+                console.log('Error:', errorMessage);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+# Environment variables
+.env
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.pyc
+*.pyd
+
+# log file
+*.log
+
+# Data file
+data.json
+transfer_preview.json

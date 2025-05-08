@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Get Holdings</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            max-width: 600px;
+            margin: auto;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        input[type="text"] {
+            width: calc(100% - 22px);
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #results, #error {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        #results {
+            background-color: #e9ecef;
+            border: 1px solid #ced4da;
+            white-space: pre-wrap; /* To display JSON nicely */
+            word-wrap: break-word;
+        }
+        #error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Fetch Holdings</h1>
+
+        <div>
+            <label for="authToken">Auth Token:</label>
+            <input type="text" id="authToken" name="authToken" placeholder="Enter your auth token">
+        </div>
+
+        <div>
+            <label for="fromType">From Type:</label>
+            <input type="text" id="fromType" name="fromType" placeholder="fromType">
+        </div>
+
+        <button id="fetchHoldingsBtn">Get Holdings</button>
+
+        <div id="results" class="hidden">
+            <h2>Holdings Data:</h2>
+            <pre id="holdingsData"></pre>
+        </div>
+        <div id="error" class="hidden">
+            <p id="errorMessage"></p>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('fetchHoldingsBtn').addEventListener('click', async () => {
+            const authToken = document.getElementById('authToken').value;
+            const fromType = document.getElementById('fromType').value;
+
+            const resultsDiv = document.getElementById('results');
+            const holdingsDataPre = document.getElementById('holdingsData');
+            const errorDiv = document.getElementById('error');
+            const errorMessageP = document.getElementById('errorMessage');
+
+            // Clear previous results and errors
+            resultsDiv.classList.add('hidden');
+            holdingsDataPre.textContent = '';
+            errorDiv.classList.add('hidden');
+            errorMessageP.textContent = '';
+
+            if (!authToken) {
+                errorMessageP.textContent = 'Auth Token is required.';
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+
+            // Construct query parameters
+            const queryParams = new URLSearchParams();
+            queryParams.append('auth_token', authToken);
+            if (fromType) {
+                queryParams.append('from_type', fromType);
+            }
+
+            try {
+                const response = await fetch(`/api/get_holdings?${queryParams.toString()}`);
+                const data = await response.json();
+
+                if (!response.ok) {
+                    // If API returns an error, it might be in data.detail (FastAPI default)
+                    const message = data.detail || `Error: ${response.status} ${response.statusText}`;
+                    throw new Error(message);
+                }
+
+                holdingsDataPre.textContent = JSON.stringify(data, null, 2); // Pretty print JSON
+                resultsDiv.classList.remove('hidden');
+
+            } catch (err) {
+                console.error('Failed to fetch holdings:', err);
+                errorMessageP.textContent = `Failed to fetch holdings: ${err.message}`;
+                errorDiv.classList.remove('hidden');
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!-- templates/auth_user.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mesh Sandbox Integration</title>
+    <meta http-equiv="Content-Security-Policy" 
+          content="frame-src self *.meshconnect.com *.getfront.com;">
+</head>
+<body>
+    <iframe id="meshFrame"
+            sandbox="allow-forms allow-scripts allow-same-origin allow-popups"
+            src="{{ auth_url }}&client_id={{ client_id }}"
+            style="width: 100%; height: 80vh; border: 1px solid #ccc">
+    </iframe>
+
+    <script>
+        window.addEventListener('message', (event) => {
+            console.log('Received message from iframe:', event);
+            
+            if (event?.data?.type === 'brokerageAccountAccessToken') {
+                const accessToken = event?.data?.payload?.accountTokens?.[0]?.accessToken;
+                const brokerType = event?.data?.payload?.brokerType;
+                console.log('Access Token:', accessToken);
+                
+                // Send access token back to FastAPI backend with request ID
+                fetch('/api/store_token/{{ request_id }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ access_token: accessToken, broker_type: brokerType })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Token stored successfully');
+                    document.body.innerHTML = '<h2>Authentication complete! You can close this window.</h2>';
+                    document.body.innerHTML += '<h3>Request ID: </h3> <span id="request_id">{{ request_id }}</span>';
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                });
+            } else if (event?.data?.type === 'done' || event?.data?.type === 'close' || event?.data?.type === 'error') {
+                // Handle other event types
+                if (event?.data?.type === 'error') {
+                    const errorMessage = event?.data?.payload?.message || 'Unknown error';
+                    console.log('Error:', errorMessage);
+                }
+                
+                // Inform the server about the completion/error if needed
+            }
+        });
+    </script>
+</body>
+</html>
