@@ -12,3 +12,4 @@ __pycache__/
 # Data file
 data.json
 transfer_preview.json
+receiving_addresses.json

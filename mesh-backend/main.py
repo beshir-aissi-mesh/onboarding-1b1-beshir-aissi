@@ -3,6 +3,7 @@ import os
 import logging
 import uuid
 import base64
+import json # Added for reading json file
 from typing import Optional
 
 import requests
@@ -25,10 +26,11 @@ logger = logging.getLogger(__name__)
 class Settings(BaseSettings):
     load_dotenv()
     client_id: str = os.getenv("MESH_CLIENT_ID")
-    client_secret: str = os.getenv("MESH_API_SECRET")
-    mesh_api_base: str = "https://sandbox-integration-api.meshconnect.com"
+    sandbox: int = os.getenv("SANDBOX")
+    client_secret: str = os.getenv("MESH_API_SECRET") if os.getenv("SANDBOX") == "1" else os.getenv("MESH_PROD_API_SECRET")
+    mesh_api_base: str = "https://sandbox-integration-api.meshconnect.com" if os.getenv("SANDBOX") == "1" else "https://integration-api.meshconnect.com/"
     auth_domain: str = "sandbox-web.meshconnect.com"
-    to_address: str = "0x0000000000000000F0F000000000ffFf00f0F0f0"
+    to_address: str = "0x0000000000000000F0F000000000ffFf00f0F0f0" if os.getenv("SANDBOX") == "1" else ""
     coinbase_network_id: str = "e3c7fdd8-b1fc-4e51-85ae-bb276e075611"
 
 settings = Settings()
@@ -196,6 +198,28 @@ async def execute_transfer_page(request: Request):
 @app.get("/holdings", response_class=HTMLResponse)
 async def holdings_page(request: Request):
     return templates.TemplateResponse("holdings.html", {"request": request})
+
+@app.get("/demo", response_class=HTMLResponse)
+async def demo_page(request: Request):
+    """Serves the main demo page"""
+    addresses = []
+    try:
+        with open("receiving_addresses.json", "r") as f:
+            print("Loading receiving addresses from JSON file.")
+            data = json.load(f)
+            addresses = data.get("addresses", [])
+    except FileNotFoundError:
+        logger.warning("receiving_addresses.json not found. Demo page will have an empty address list.")
+    except json.JSONDecodeError:
+        logger.warning("receiving_addresses.json is not valid JSON. Demo page will have an empty address list.")
+    
+    return templates.TemplateResponse(
+        "demo.html",
+        {
+            "request": request,
+            "receiving_addresses": addresses
+        }
+    )
 
 @app.get("/init_auth", response_class=HTMLResponse)
 @app.get("/init_auth/{request_id}", response_class=HTMLResponse)
