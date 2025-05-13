@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verification Required - RainbowWallet</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f7f6;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        h2 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-top: 15px;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input[type="text"] {
+            width: calc(100% - 22px);
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 16px;
+            text-align: center;
+            letter-spacing: 2px;
+        }
+        button {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 20px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .btn-success {
+            background-color: #28a745;
+        }
+        .btn-success:hover {
+            background-color: #218838;
+        }
+        .status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            font-weight: bold;
+            text-align: center;
+        }
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status.info {
+            background-color: #e2f0fb;
+            color: #0c5460;
+        }
+        .hidden {
+            display: none;
+        }
+        .spinner {
+            margin: 20px auto;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Verification Required</h2>
+        
+        <p>A verification code has been sent to your registered device. Please enter it below to complete your payment.</p>
+        
+        <form id="mfa-form">
+            <div>
+                <label for="mfa_code">Verification Code:</label>
+                <input type="text" id="mfa_code" name="mfa_code" maxlength="7" placeholder="000000" required>
+            </div>
+            <button type="submit" class="btn-success">Complete Payment</button>
+            <button type="button" id="cancel-btn">Cancel</button>
+        </form>
+        
+        <div id="status-message" class="status hidden"></div>
+        <div id="spinner" class="spinner hidden"></div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const mfaForm = document.getElementById('mfa-form');
+        const mfaCode = document.getElementById('mfa_code');
+        const cancelBtn = document.getElementById('cancel-btn');
+        const statusMessage = document.getElementById('status-message');
+        const spinner = document.getElementById('spinner');
+        
+        // State variables
+        let authToken = null;
+        let fromType = null;
+        let previewId = null;
+        
+        // Show status message
+        function showStatus(message, type) {
+            statusMessage.textContent = message;
+            statusMessage.className = `status ${type}`;
+            statusMessage.classList.remove('hidden');
+        }
+        
+        // Hide status message
+        function hideStatus() {
+            statusMessage.classList.add('hidden');
+        }
+        
+        // Show spinner
+        function showSpinner() {
+            spinner.classList.remove('hidden');
+        }
+        
+        // Hide spinner
+        function hideSpinner() {
+            spinner.classList.add('hidden');
+        }
+        
+        // Check if MFA verification is required
+        function checkMfaRequired() {
+            // Get auth details from localStorage
+            authToken = localStorage.getItem('mesh_auth_token');
+            fromType = localStorage.getItem('mesh_from_type');
+            previewId = localStorage.getItem('mesh_preview_id');
+            
+            if (!authToken || !fromType || !previewId) {
+                showStatus('Authentication information missing. Please start over.', 'error');
+                return false;
+            }
+            
+            return true;
+        }
+        
+        // Execute transfer with MFA
+        async function executeTransferWithMfa(mfaCode) {
+            try {
+                showSpinner();
+                hideStatus();
+                // Execute transfer with MFA
+                const response = await fetch('/api/execute_transfer', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        auth_token: authToken,
+                        from_type: fromType,
+                        preview_id: previewId,
+                        mfa_code: mfaCode
+                    })
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    // Store transaction details
+                    localStorage.setItem('mesh_transaction_id', data.content.id || 'N/A');
+                    localStorage.setItem('mesh_transaction_status', data.content.status || 'N/A');
+                    
+                    // Navigate to success page
+                    window.location.href = '/rainbow_success';
+                } else {
+                    const errorMsg = data.detail || 'Failed to execute transfer with MFA code';
+                    throw new Error(errorMsg);
+                }
+            } catch (error) {
+                // Log execution error but don't expose details in UI
+                hideSpinner();
+                showStatus(`Error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Cancel button click handler
+        cancelBtn.addEventListener('click', function() {
+            // Clear localStorage and return to payment page
+            localStorage.removeItem('mesh_auth_token');
+            localStorage.removeItem('mesh_from_type');
+            localStorage.removeItem('mesh_preview_id');
+            localStorage.removeItem('mesh_needs_mfa');
+            
+            window.location.href = '/rainbow_payment';
+        });
+        
+        // MFA form submission
+        mfaForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            const mfaCodeValue = mfaCode.value.trim();
+            
+            if (mfaCodeValue.length < 4) {
+                showStatus('Please enter a valid verification code', 'error');
+                return;
+            }
+            
+            executeTransferWithMfa(mfaCodeValue);
+        });
+        
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', function() {
+            // Focus on MFA input field
+            mfaCode.focus();
+            
+            // Check if MFA is required and we have auth details
+            checkMfaRequired();
+        });
+        
+        // Make MFA input only accept digits
+        mfaCode.addEventListener('input', function() {
+            this.value = this.value.replace(/[^0-9]/g, '');
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" 
+          content="frame-src self *.meshconnect.com *.getfront.com;">
+    <title>Payment to RainbowWallet</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f7f6;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        h2 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        button {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 20px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            font-weight: bold;
+            text-align: center;
+        }
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status.info {
+            background-color: #e2f0fb;
+            color: #0c5460;
+        }
+        .hidden {
+            display: none;
+        }
+        .spinner {
+            margin: 20px auto;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        .iframe-container {
+            width: 100%;
+            height: 500px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin: 15px 0;
+            overflow: hidden;
+        }
+        .iframe-container iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Payment to RainbowWallet</h2>
+        <p>Make a $5 USDC payment to RainbowWallet securely using your linked wallet.</p>
+        
+        <div id="auth-section">
+            <button id="start-payment-btn">Start $5 Payment</button>
+            <div id="status-message" class="status hidden"></div>
+            <div id="spinner" class="spinner hidden"></div>
+        </div>
+        
+        <div id="auth-container" class="iframe-container hidden">
+            <!-- Auth iframe will be inserted here -->
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const startPaymentBtn = document.getElementById('start-payment-btn');
+        const statusMessage = document.getElementById('status-message');
+        const spinner = document.getElementById('spinner');
+        const authContainer = document.getElementById('auth-container');
+        
+        // State variables
+        let requestId = null;
+        let linkToken = null;
+        let pollTimerId = null;
+        
+        // Show status message
+        function showStatus(message, type) {
+            statusMessage.textContent = message;
+            statusMessage.className = `status ${type}`;
+            statusMessage.classList.remove('hidden');
+        }
+        
+        // Hide status message
+        function hideStatus() {
+            statusMessage.classList.add('hidden');
+        }
+        
+        // Show spinner
+        function showSpinner() {
+            spinner.classList.remove('hidden');
+        }
+        
+        // Hide spinner
+        function hideSpinner() {
+            spinner.classList.add('hidden');
+        }
+        
+        // Poll for token
+        async function pollForToken() {
+            if (!requestId) return;
+            
+            try {
+                const response = await fetch(`/api/get_token/${requestId}`);
+                const data = await response.json();
+                
+                if (data.status === 'success' || data.status === 'complete') {
+                    // Store token data
+                    const authToken = data.access_token;
+                    const fromType = data.broker_type;
+                    
+                    // Store in localStorage for next page
+                    localStorage.setItem('mesh_auth_token', authToken);
+                    localStorage.setItem('mesh_from_type', fromType);
+                    
+                    // Redirect to payment preview page
+                    window.location.href = '/rainbow_preview';
+                } else {
+                    // Continue polling if token not yet available
+                    pollTimerId = setTimeout(pollForToken, 2000);
+                }
+            } catch (error) {
+                console.error('Token polling error:', error);
+                showStatus(`Error: ${error.message}`, 'error');
+                hideSpinner();
+            }
+        }
+        
+        // Handle auth message events
+        window.addEventListener('message', function(event) {
+            // Handle broker access token event
+            if (event.data && event.data.type === 'brokerageAccountAccessToken') {
+                const accessToken = event.data.payload.accountTokens[0].accessToken;
+                const brokerType = event.data.payload.brokerType;
+                // Store the token via API
+                if (requestId) {
+                    fetch(`/api/store_token/${requestId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            access_token: accessToken,
+                            broker_type: brokerType
+                        })
+                    }).then(response => {
+                        if (response.ok) {
+                            showStatus('Authentication successful! Preparing payment...', 'success');
+                            // Start polling for token
+                            pollForToken();
+                        } else {
+                            console.error('Failed to store token');
+                            showStatus('Failed to store authentication token.', 'error');
+                        }
+                    }).catch(error => {
+                        console.error('Token storage error:', error);
+                        showStatus(`Error: ${error.message}`, 'error');
+                    });
+                }
+            } 
+            // Handle done/close/error events
+            else if (event.data && (event.data.type === 'done' || event.data.type === 'close')) {
+                // Authentication completed or closed
+                // Continue polling for token, as it may have been stored
+            } 
+            else if (event.data && event.data.type === 'error') {
+                const errorMessage = event.data.payload?.message || 'Unknown authentication error';
+                console.error('Authentication error:', errorMessage);
+                showStatus(`Authentication error: ${errorMessage}`, 'error');
+            }
+        });
+        
+        // Start payment and authentication process
+        startPaymentBtn.addEventListener('click', async function() {
+            try {
+                showSpinner();
+                hideStatus();
+                
+                // Generate Request ID
+                const requestIdResponse = await fetch('/api/request_id');
+                const requestIdData = await requestIdResponse.json();
+                requestId = requestIdData.request_id;
+                
+                // Get Link Token
+                const linkTokenResponse = await fetch('/api/get_linktoken');
+                const linkTokenData = await linkTokenResponse.json();
+                linkToken = linkTokenData.link_token;
+                
+                if (requestId && linkToken) {
+                    showStatus('Initializing payment...', 'info');
+                    
+                    // Store requestId in localStorage for other pages
+                    localStorage.setItem('mesh_request_id', requestId);
+                    
+                    // Hide start button and show iframe
+                    startPaymentBtn.style.display = 'none';
+                    authContainer.classList.remove('hidden');
+                    
+                    // Decode link token to get auth URL
+                    const authUrl = atob(linkToken);
+                    
+                    // Create and append iframe
+                    const iframe = document.createElement('iframe');
+                    iframe.src = authUrl;
+                    iframe.id = 'auth-iframe';
+                    iframe.sandbox = 'allow-forms allow-scripts allow-same-origin allow-popups';
+                    iframe.allow = 'clipboard-read; clipboard-write';
+                    
+                    authContainer.appendChild(iframe);
+                } else {
+                    showStatus('Failed to initialize payment process.', 'error');
+                    hideSpinner();
+                }
+            } catch (error) {
+                console.error('Initialization error:', error);
+                showStatus(`Error: ${error.message}`, 'error');
+                hideSpinner();
+            }
+        });
+    </script>
+</body>
+</html>

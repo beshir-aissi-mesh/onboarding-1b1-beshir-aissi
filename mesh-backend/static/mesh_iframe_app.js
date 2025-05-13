@@ -37,10 +37,17 @@ document.addEventListener("DOMContentLoaded", () => {
   sendBtn.onclick = async () => {
     if (!rainbowToken) return alert("link wallet first");
 
-    const amtEl = $("amt");
-    if (!amtEl) return alert("amount input missing");
-    const amt = parseFloat(amtEl.value);
-    if (!amt || amt <= 0) return alert("enter a valid amount");
+    // Get amount - either from input field or use fixed amount if specified
+    let amt;
+    const fixedAmount = window.FIXED_AMOUNT;
+    if (fixedAmount !== undefined) {
+      amt = fixedAmount;
+    } else {
+      const amtEl = $("amt");
+      if (!amtEl) return alert("amount input missing");
+      amt = amtEl.value;
+      if (!amt || isNaN(parseFloat(amt)) || parseFloat(amt) <= 0) return alert("enter a valid amount");
+    }
 
     const res = await fetch("/api/linktoken_transfer", {
       method: "POST",

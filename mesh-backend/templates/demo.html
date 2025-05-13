@@ -106,6 +106,32 @@
             color: #004085;
             border: 1px solid #b8daff;
         }
+        /* Table Styles */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            background-color: white;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+        th {
+            background-color: #f8f9fa;
+            color: #007bff;
+            font-weight: 600;
+        }
+        tr:hover {
+            background-color: #f1f3f5;
+        }
+        .crypto-table {
+            margin-top: 20px;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            overflow: hidden;
+        }
     </style>
 </head>
 <body>
@@ -124,42 +150,9 @@
 
         <!-- Holdings Section -->
         <div class="section hidden" id="holdingsSection">
-            <h3>Step 2: View Holdings (Optional)</h3>
+            <h3>Step 2: View Holdings</h3>
             <button id="viewHoldingsButton" disabled>View My Holdings</button>
             <div id="holdingsArea" class="hidden"></div>
-        </div>
-
-        <!-- Transfer Section -->
-        <div class="section hidden" id="transferSection">
-            <h3>Step 3: Initiate Transfer</h3>
-            
-            <div id="transferPreviewSubSection">
-                <h4>3a. Preview Transfer</h4>
-                <label for="toAddress">Receiving Address:</label>
-                <select id="toAddress" name="toAddress">
-                    {% for address in receiving_addresses %}
-                        <option value="{{ address }}">{{ address }}</option>
-                    {% endfor %}
-                </select>
-
-                <label for="amount">Amount:</label>
-                <input type="number" id="amount" name="amount" step="any" placeholder="e.g., 0.01" required>
-
-                <label for="symbol">Symbol:</label>
-                <input type="text" id="symbol" name="symbol" placeholder="e.g., ETH" required>
-                
-                <button id="previewTransferButton" disabled>Preview Transfer</button>
-                <div id="previewArea" class="hidden"></div>
-                <input type="hidden" id="previewId">
-            </div>
-
-            <div id="transferExecuteSubSection" class="hidden">
-                <h4>3b. Execute Transfer</h4>
-                <label for="mfaCode">MFA Code (if required):</label>
-                <input type="text" id="mfaCode" name="mfaCode" placeholder="Enter MFA code">
-                <button id="executeTransferButton" disabled>Confirm and Execute Transfer</button>
-                <div id="executionArea" class="hidden"></div>
-            </div>
         </div>
     </div>
 
@@ -173,20 +166,6 @@
         const holdingsSection = document.getElementById('holdingsSection');
         const viewHoldingsButton = document.getElementById('viewHoldingsButton');
         const holdingsArea = document.getElementById('holdingsArea');
-
-        const transferSection = document.getElementById('transferSection');
-        const previewTransferButton = document.getElementById('previewTransferButton');
-        const previewArea = document.getElementById('previewArea');
-        const previewIdInput = document.getElementById('previewId');
-        
-        const toAddressSelect = document.getElementById('toAddress');
-        const amountInput = document.getElementById('amount');
-        const symbolInput = document.getElementById('symbol');
-
-        const transferExecuteSubSection = document.getElementById('transferExecuteSubSection');
-        const mfaCodeInput = document.getElementById('mfaCode');
-        const executeTransferButton = document.getElementById('executeTransferButton');
-        const executionArea = document.getElementById('executionArea');
 
         let authWindow = null;
         let pollInterval = null;
@@ -239,11 +218,9 @@
                     authStatus.className = 'status-message status-success';
                     authButton.classList.add('hidden'); // Hide auth button
 
-                    // Enable next steps
+                    // Enable next step
                     holdingsSection.classList.remove('hidden');
                     viewHoldingsButton.disabled = false;
-                    transferSection.classList.remove('hidden');
-                    previewTransferButton.disabled = false;
 
                 } else if (data.status === 'pending') {
                     authStatus.textContent = 'Awaiting authentication completion in the popup window...';
@@ -271,7 +248,47 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    holdingsArea.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                    // Format cryptocurrency positions into a table
+                    if (data.content && data.content.cryptocurrencyPositions && data.content.cryptocurrencyPositions.length > 0) {
+                        const cryptoPositions = data.content.cryptocurrencyPositions;
+                        
+                        let tableHtml = `
+                            <div class="crypto-table">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Symbol</th>
+                                            <th>Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                        `;
+                        
+                        // Add rows for each cryptocurrency
+                        cryptoPositions.forEach(crypto => {
+                            tableHtml += `
+                                <tr>
+                                    <td>${crypto.name}</td>
+                                    <td>${crypto.symbol}</td>
+                                    <td>${crypto.amount}</td>
+                                </tr>
+                            `;
+                        });
+                        
+                        tableHtml += `
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="status-info" style="margin-top: 15px; padding: 10px;">
+                                Account: ${data.content.institutionName} - ${data.content.accountName}
+                            </div>
+                        `;
+                        
+                        holdingsArea.innerHTML = tableHtml;
+                    } else {
+                        holdingsArea.innerHTML = `<p class="status-info">No cryptocurrency positions found.</p>`;
+                    }
                 } else {
                     throw new Error(data.detail || `Error ${response.status}`);
                 }
@@ -280,85 +297,6 @@
                 holdingsArea.innerHTML = `<p class="status-error">Error fetching holdings: ${error.message}</p>`;
             } finally {
                 viewHoldingsButton.disabled = false;
-            }
-        });
-
-        previewTransferButton.addEventListener('click', async () => {
-            previewArea.innerHTML = '<p>Generating transfer preview...</p>';
-            previewArea.classList.remove('hidden');
-            previewTransferButton.disabled = true;
-            executeTransferButton.disabled = true; // Disable execute until new preview
-            transferExecuteSubSection.classList.add('hidden');
-
-
-            if (!amountInput.value || !symbolInput.value || !toAddressSelect.value) {
-                previewArea.innerHTML = `<p class="status-error">Amount, Symbol, and Receiving Address are required.</p>`;
-                previewTransferButton.disabled = false;
-                return;
-            }
-
-            try {
-                const params = new URLSearchParams({
-                    auth_token: accessTokenInput.value,
-                    from_type: brokerTypeInput.value,
-                    to_type: 'EXTERNAL_BLOCKCHAIN_ADDRESS', // Assuming this for demo
-                    to_address: toAddressSelect.value,
-                    amount: amountInput.value,
-                    symbol: symbolInput.value.toUpperCase(),
-                    // address_tag: '', // Optional, add if needed
-                });
-
-                const response = await fetch(`/api/transfer_preview?${params.toString()}`);
-                const data = await response.json();
-
-                if (response.ok && data.content?.previewId) {
-                    previewArea.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
-                    previewIdInput.value = data.content.previewId;
-                    transferExecuteSubSection.classList.remove('hidden');
-                    executeTransferButton.disabled = false;
-                } else {
-                    throw new Error(data.detail || data.message || `Error ${response.status}`);
-                }
-            } catch (error) {
-                console.error('Error generating transfer preview:', error);
-                previewArea.innerHTML = `<p class="status-error">Error generating preview: ${error.message}</p>`;
-            } finally {
-                previewTransferButton.disabled = false;
-            }
-        });
-
-        executeTransferButton.addEventListener('click', async () => {
-            executionArea.innerHTML = '<p>Executing transfer...</p>';
-            executionArea.classList.remove('hidden');
-            executeTransferButton.disabled = true;
-
-            try {
-                const payload = {
-                    auth_token: accessTokenInput.value,
-                    from_type: brokerTypeInput.value,
-                    preview_id: previewIdInput.value,
-                    mfa_code: mfaCodeInput.value || "" // Send empty string if no MFA
-                };
-
-                const response = await fetch('/api/execute_transfer', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                const data = await response.json();
-
-                if (response.ok) {
-                    executionArea.innerHTML = `<p class="status-success">Transfer Executed Successfully:</p><pre>${JSON.stringify(data, null, 2)}</pre>`;
-                } else {
-                     throw new Error(data.detail || data.message || `Error ${response.status}`);
-                }
-            } catch (error) {
-                console.error('Error executing transfer:', error);
-                executionArea.innerHTML = `<p class="status-error">Error executing transfer: ${error.message}</p>`;
-            } finally {
-                // Re-enable button if user wants to try again (e.g. with different MFA)
-                // Or keep it disabled if transfer is final. For demo, let's re-enable.
-                executeTransferButton.disabled = false; 
             }
         });
 
