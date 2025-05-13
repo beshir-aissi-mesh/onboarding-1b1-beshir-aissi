@@ -77,6 +77,8 @@ The application uses a comprehensive error handling and logging approach:
     MESH_API_SECRET=your_mesh_api_secret
     MESH_PROD_API_SECRET=your_mesh_prod_api_secret
     RECEIVING_WALLET_ADDRESS=your_receiving_wallet_address
+    RAINBOW_WALLET_ADDRESS=your_rainbow_wallet_address (for sample rainbow deposit)
+    COINBASE_WALLET_ADDRESS=your_coinbase_wallet_address (for sample coinbase deposit)
     SANDBOX=1  # Set to 0 for production
     ```
 
