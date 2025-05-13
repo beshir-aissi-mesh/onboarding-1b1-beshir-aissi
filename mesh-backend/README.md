@@ -324,9 +324,7 @@ The application includes several demo pages to showcase different Mesh integrati
 The codebase follows these standards:
 - Type annotations using Python's typing module
 - Docstrings in all functions with parameter and return type descriptions
-- Organized imports (standard library, third-party, local)
 - Constants for magic values
-- Clear section organization
 
 ### Logging
 
@@ -334,7 +332,6 @@ The application uses Python's built-in logging module with:
 - INFO level for normal operation
 - ERROR level for API failures and exceptions
 - WARNING level for non-critical issues
-- Consistent format with timestamps
 
 ### Performance Considerations
 
