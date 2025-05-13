@@ -6,9 +6,9 @@ import requests
 import overlay_ui
 
 # --- Configuration ---
-TILE_SIZE = 128*1.5  # Pixels
-WINDOW_WIDTH = 15 * TILE_SIZE  # 15 tiles wide
-WINDOW_HEIGHT = 10 * TILE_SIZE # tiles high
+TILE_SIZE = 64  # Pixels
+WINDOW_WIDTH = int(15 * TILE_SIZE)  # 15 tiles wide
+WINDOW_HEIGHT = int(10 * TILE_SIZE) # tiles high
 
 # Colors (will be mostly replaced by sprites, but kept for reference or fallbacks)
 COLOR_PLAYER_FALLBACK = (255, 0, 0)
@@ -142,20 +142,6 @@ def update_player_sprite_position():
     
     # Update hat position relative to the player
     if hat_sprite:
-        # Player's head is roughly in the top half of the player sprite.
-        # The hat sprite is also 32x32, scaled to TILE_SIZE.
-        # We want to shift the hat sprite up so it appears on the player's head.
-        # Let's try shifting it up by a bit. The exact value might need tuning.
-        # If player head is at top ~1/3 of tile, and hat sits on that.
-        # Hat's own anchor is bottom-left.
-        # An offset of roughly 1/4 to 1/3 of TILE_SIZE upwards might work.
-        # Let's try TILE_SIZE * (10 / 32) as a starting point, as the player's head starts around y=4 (from top)
-        # and hat brim starts around y=18 (from top).
-        # If player head top is at ~ (32-4)/32 = 28/32 from bottom of its sprite.
-        # And hat bottom of crown is at ~ (32-18)/32 = 14/32 from bottom of its sprite.
-        # We want hat_sprite.y + 14/32 * TILE_SIZE = player_sprite.y + 28/32 * TILE_SIZE
-        # hat_sprite.y = player_sprite.y + (14/32) * TILE_SIZE
-        
         hat_offset_y_pixels = TILE_SIZE * (12 / 32.0) # Shift hat up by 12 'original' pixels
 
         hat_sprite.x = player_pixel_x 
@@ -235,10 +221,10 @@ def on_key_press(symbol, modifiers):
             print("Player is on a special tile (AUTH)!")
 
             # Your existing auth logic
-            request_data = fetch_data("http://localhost:3000/api/request_id")
+            request_data = fetch_data("http://127.0.0.1:8000/api/request_id")
             if request_data and request_data.get('request_id'):
                 request_id = request_data['request_id']
-                webbrowser.open(f"http://localhost:3000/init_auth/{request_id}")
+                webbrowser.open(f"http://127.0.0.1:8000/init_auth/{request_id}")
 
                 # --- Add wall to the LEFT of the player's CURRENT position ---
                 wall_target_x = player_x - 1
@@ -271,7 +257,7 @@ def on_key_press(symbol, modifiers):
         elif current_tile_type == 3: # verification tile
             print("Player is on a verification tile!")
             if request_id:
-                request_fetch = fetch_data(f"http://localhost:3000/api/get_token/{request_id}")
+                request_fetch = fetch_data(f"http://127.0.0.1:8000/api/get_token/{request_id}")
                 if request_fetch and request_fetch.get("status") == "success":
                     wall_target_x = player_x - 1
                     wall_target_y = player_y
@@ -297,7 +283,7 @@ def on_key_press(symbol, modifiers):
         elif current_tile_type == 4: # balance tile
             print("Player is on a balance tile!")
             if request_id and auth_token and from_type:
-                request_fetch = fetch_data(f"http://localhost:3000/api/get_holdings", params={"auth_token": auth_token, "from_type": from_type})
+                request_fetch = fetch_data(f"http://127.0.0.1:8000/api/get_holdings", params={"auth_token": auth_token, "from_type": from_type})
                 if request_fetch:
                     overlay_ui.show(request_fetch)
                     print("Holdings displayed.")
@@ -315,7 +301,7 @@ def on_key_press(symbol, modifiers):
                     return # Do nothing if player already has a hat
 
                 # Attempt to purchase item (transfer USDC)
-                request_fetch = fetch_data(f"http://localhost:3000/api/transfer_preview", params={
+                request_fetch = fetch_data(f"http://127.0.0.1:8000/api/transfer_preview", params={
                     "auth_token": auth_token,
                     "from_type": from_type,
                     "to_type": from_type,
@@ -335,7 +321,7 @@ def on_key_press(symbol, modifiers):
                         preview_id = response_content["previewResult"]["previewId"]
                         mfa_code = "123456" # This seems hardcoded, might need clarification later
 
-                        execute_fetch = fetch_data(f"http://localhost:3000/api/execute_transfer", type="POST", params={
+                        execute_fetch = fetch_data(f"http://127.0.0.1:8000/api/execute_transfer", type="POST", params={
                             "auth_token": auth_token,
                             "from_type": from_type,
                             "preview_id": preview_id,

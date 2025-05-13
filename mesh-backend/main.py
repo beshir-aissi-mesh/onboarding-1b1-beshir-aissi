@@ -1,4 +1,4 @@
-# mesh_sandbox_integration.py
+# main.py
 import os
 import logging
 import uuid
@@ -7,10 +7,11 @@ import json # Added for reading json file
 from typing import Optional
 
 import requests
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import Body, FastAPI, Request, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
 
@@ -30,11 +31,12 @@ class Settings(BaseSettings):
     client_secret: str = os.getenv("MESH_API_SECRET") if os.getenv("SANDBOX") == "1" else os.getenv("MESH_PROD_API_SECRET")
     mesh_api_base: str = "https://sandbox-integration-api.meshconnect.com" if os.getenv("SANDBOX") == "1" else "https://integration-api.meshconnect.com/"
     auth_domain: str = "sandbox-web.meshconnect.com"
-    to_address: str = "0x0000000000000000F0F000000000ffFf00f0F0f0" if os.getenv("SANDBOX") == "1" else ""
-    coinbase_network_id: str = "e3c7fdd8-b1fc-4e51-85ae-bb276e075611"
+    to_address: str = "0x0000000000000000F0F000000000ffFf00f0F0f0" if os.getenv("SANDBOX") == "1" else os.getenv("RECEIVING_WALLET_ADDRESS")
+    coinbase_network_id: str = "aa883b03-120d-477c-a588-37c2afd3ca71"
 
 settings = Settings()
 app = FastAPI(title="Mesh Sandbox Integration")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 # --- Models ---
@@ -50,8 +52,18 @@ class ExecuteTransferPayload(BaseModel):
     preview_id: str
     mfa_code: str
 
+class TransferRequest(BaseModel):
+    amount: float = Field(..., gt=0)
+    request_id: Optional[str] = None
+
+class TransferResult(BaseModel):
+    request_id: str
+    status: str  # "success" | "failed"
+    tx_hash: Optional[str] = None
+
 # --- Storage ---
 token_storage = {}
+transfer_storage: dict[str, dict] = {}
 
 # --- Utility Functions ---
 
@@ -199,6 +211,31 @@ async def execute_transfer_page(request: Request):
 async def holdings_page(request: Request):
     return templates.TemplateResponse("holdings.html", {"request": request})
 
+@app.get("/iframe_link", response_class=HTMLResponse)
+async def iframe_link(request: Request):
+    """
+    Renders a page that embeds the Mesh Link UI inside an iframe.
+    The server mints the one-time link token so the secret never
+    touches the browser.
+    """
+    try:
+        # 1⃣  Call Mesh to create a one-time link token
+        link_token = get_link_token()
+    except Exception as e:
+        logger.exception("Could not get link token")
+        raise HTTPException(status_code=500, detail="Failed to create link token")
+
+    # 2⃣  Render the HTML template, injecting the token + client ID
+    return templates.TemplateResponse(
+        "iframe_link.html",
+        {
+            "request": request,
+            "link_token": link_token,       # ← used by the ES-module/UMD script
+            "mesh_client_id": settings.client_id,  # optional but nice for analytics
+            "DEST_SYMBOL": "USDC",       # fixed in demo
+        },
+    )
+
 @app.get("/demo", response_class=HTMLResponse)
 async def demo_page(request: Request):
     """Serves the main demo page"""
@@ -247,6 +284,27 @@ async def initialize_auth(request: Request, request_id: Optional[str] = None):
         "auth_url": auth_url,
         "request_id": request_id
     })
+
+@app.get("/transfer_test", response_class=HTMLResponse)
+async def transfer_test(request: Request):
+    """
+    Tiny page that:
+      • lets you type an amount
+      • calls /api/transfer_request
+      • opens Mesh Link
+      • sends /api/transfer_result when finished
+      • polls /api/transfer_status every 3 s
+    """
+    link_token = get_link_token()  # for the initial wallet link
+    return templates.TemplateResponse(
+        "transfer_test.html",
+        {
+            "request":        request,
+            "link_token":     link_token,
+            "mesh_client_id": settings.client_id,
+            "dest_symbol":    "USDC",
+        },
+    )
 
 # --- API Routes ---
 
@@ -308,8 +366,8 @@ async def transfer_preview_endpoint(
     to_type: str, 
     to_address: str, 
     amount: float, 
-    address_tag: str, 
-    symbol: str
+    symbol: str,
+    address_tag: str = None,
 ):
     """Endpoint to get transfer preview"""
     try:
@@ -368,6 +426,80 @@ async def api_get_networks(request: Request):
     except Exception as e:
         logger.error(f"Networks request failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Networks request failed: {str(e)}")
+
+@app.post("/api/linktoken_transfer")
+async def linktoken_transfer(
+    amount: float = Body(..., embed=True)
+):
+    try:
+        resp = requests.post(
+            f"{settings.mesh_api_base}/api/v1/linktoken",
+            headers={
+                "X-Client-Id":     settings.client_id,
+                "X-Client-Secret": settings.client_secret,
+                "Content-Type":    "application/json",
+            },
+            json={
+                "userId": "demo-user",
+                "enableTransfers": True,
+                "restrictMultipleAccounts": True,
+                "transferOptions": {
+                    "amount": amount,
+                    "toAddresses": [
+                        {
+                            "networkId": settings.coinbase_network_id,
+                            "symbol": "USDC",
+                            "address": settings.to_address,
+                        }
+                    ],
+                },
+            },
+            timeout=10,
+        )
+        resp.raise_for_status()
+        link_token = resp.json()["content"]["linkToken"]    # ← v3 response is flat
+        return {"link_token": link_token}
+    except Exception as e:
+        logger.exception("transfer token failed")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/transfer_request")
+async def transfer_request(req: TransferRequest):
+    request_id = req.request_id or str(uuid.uuid4())
+    try:
+        # call the helper that hits Mesh
+        mesh_resp = await linktoken_transfer(amount=req.amount)
+        link_token = mesh_resp["link_token"]
+
+        # record as pending
+        transfer_storage[request_id] = {
+            "status": "pending",
+            "amount": req.amount,
+            "tx_hash": None,
+        }
+        return {"request_id": request_id, "link_token": link_token}
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.exception("transfer_request failed")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# 2️⃣  browser notifies backend when Mesh fires onTransferFinished
+@app.post("/api/transfer_result")
+async def transfer_result(result: TransferResult):
+    if result.request_id not in transfer_storage:
+        raise HTTPException(status_code=404, detail="unknown request_id")
+    transfer_storage[result.request_id].update(
+        status=result.status, tx_hash=result.tx_hash
+    )
+    return {"status": "recorded"}
+
+# 3️⃣  anybody can poll this
+@app.get("/api/transfer_status/{request_id}")
+async def transfer_status(request_id: str):
+    if request_id not in transfer_storage:
+        raise HTTPException(status_code=404, detail="unknown request_id")
+    return transfer_storage[request_id]
 
 # --- Main Entry Point ---
 

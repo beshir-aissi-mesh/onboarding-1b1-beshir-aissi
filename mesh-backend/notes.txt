@@ -1,0 +1,1 @@
+npx esbuild static/mesh_iframe_app.js --bundle --format=iife --platform=browser --target=es2018 --outfile=static/mesh_iframe_app.bundle.js

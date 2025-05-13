@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Mesh Link – Popup Connect + Transfer</title>
+  <style>
+    body{font:15px/1.4 sans-serif;margin:2rem}
+    button,input{font:1rem;padding:.4rem .8rem;margin:.3rem 0}
+    #log{white-space:pre;border:1px solid #ccc;padding:.5rem;height:140px;overflow:auto}
+  </style>
+</head>
+<body>
+
+  <h2>1. Link Wallet</h2>
+  <button id="connect">Open Link Popup</button>
+
+  <h2>2. Send {{ DEST_SYMBOL }} to my address</h2>
+  <input id="amt" placeholder="Amount" style="width:120px">
+  <button id="send" disabled>Send Funds</button>
+
+  <h2>Status</h2>
+  <div id="log"></div>
+
+  <!-- expose server-generated values -->
+  <script>
+    window.LINK_TOKEN     = "{{ link_token | e }}";
+    window.MESH_CLIENT_ID = "{{ mesh_client_id | e }}";
+  </script>
+
+  <!-- single locally-hosted bundle: includes the SDK -->
+  <script src="{{ url_for('static', path='mesh_iframe_app.bundle.js') }}"></script>
+</body>
+</html>

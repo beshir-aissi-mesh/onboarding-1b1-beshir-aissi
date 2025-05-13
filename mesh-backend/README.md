@@ -49,6 +49,11 @@ The authentication process uses request tokens to manage the state of user verif
     uvicorn main:app --reload
     ```
 
+    or on Windows
+    ```powershell
+    python -m uvicorn main:app --reload
+    ```
+
     This will start the FastAPI application using uvicorn with auto-reloading enabled.
 
 ## API Endpoint Usage

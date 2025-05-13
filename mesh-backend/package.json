@@ -1,0 +1,17 @@
+{
+  "name": "mesh-backend",
+  "version": "1.0.0",
+  "description": "This is the backend wrapper for the Mesh to simplify integration.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@meshconnect/web-link-sdk": "^3.1.12",
+    "uuid": "^11.1.0"
+  }
+}
