@@ -1,4 +1,4 @@
-# Mesh 1b(eshir)1
+# Mesh 1b1
 
 This repository contains:
 
